@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.82"
 candle-core = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
 candle-transformers = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
+candle-nn = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
 csv = "1.3.0"
 hf-hub = "0.3.2"
 indicatif = "0.17.8"

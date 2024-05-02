@@ -1,12 +1,15 @@
 use std::{cmp::min, sync::{Arc, Mutex}};
-
 use candle_core::Device;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-
-use crate::{config::{PAR_CHUNK_SIZE, TRANSLATOR_PROGRESS_FILE}, docs::{doc::Doc, saver::{save_raw, save_to_json}}, llm::{model::load_model, prompt::{prompt_model, Prompt}, tokenizer::load_tokenizer}, util::{get_progress_bar, load_progress, save_progress, Progress}};
+use crate::{
+    config::{PAR_CHUNK_SIZE, TRANSLATION_TOKENIZER, TRANSLATION_MODEL, TRANSLATOR_PROGRESS_FILE}, 
+    docs::{doc::Doc, saver::{save_raw, save_to_json}}, 
+    llm::{model::load_model, prompt::{prompt_model, Prompt}, tokenizer::load_tokenizer}, 
+    util::{get_progress_bar, load_progress, save_progress, Progress}
+};
+use super::splitter::{merge_parsed_documents, split_to_prompts};
 
 pub type ProcessedDocumentChunk = (String, String, bool);
-
 
 pub fn translate(mut docs: Vec<Doc>) {
     let device1 = match Device::new_cuda(0) {
@@ -25,17 +28,17 @@ pub fn translate(mut docs: Vec<Doc>) {
         },
     };
 
-    let tokenizer = match load_tokenizer("models/llama3-8b/tokenizer.json") {
+    let tokenizer = match load_tokenizer(TRANSLATION_TOKENIZER) {
         Ok(t) => t,
         Err(e) => panic!("Can't load tokenizer: {:#?}", e),
     };
 
-    let model1 = match load_model("models/llama3-8b/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf", &device1) { 
+    let model1 = match load_model(TRANSLATION_MODEL, &device1) { 
         Ok(m) => Arc::new(Mutex::new(m)),
         Err(e) => panic!("Can't load model: {:#?}", e),
     };
 
-    let model2 = match load_model("models/llama3-8b/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf", &device2) { 
+    let model2 = match load_model(TRANSLATION_MODEL, &device2) { 
         Ok(m) => Arc::new(Mutex::new(m)),
         Err(e) => panic!("Can't load model: {:#?}", e),
     };
@@ -116,63 +119,3 @@ pub fn translate(mut docs: Vec<Doc>) {
     progress_bar.finish_with_message("Processing complete!");
 }
 
-
-fn split_to_prompts(document: &Doc) -> Vec<String> {
-    let tokenizer = match load_tokenizer("models/llama3-8b/tokenizer.json") {
-        Ok(t) => t,
-        Err(e) => panic!("Can't load tokenizer: {}", e),
-    };
-
-    let mut chunks = Vec::new();
-    let mut current_chunk = String::new();
-    let mut current_token_count = 0;
-
-    // Split the document content by newlines
-    let lines = document.content.split("\n\n");
-
-    for line in lines {
-        // Use tokenizer to encode the line and check the token count
-        let tokens = match tokenizer.encode(&*line, true) {
-            Ok(t) => t,
-            Err(e) => panic!("Error tokenizing: {}", e),
-        };
-        let token_count = tokens.len();
-
-        // Add this line to the current chunk
-        if !current_chunk.is_empty() {
-            current_chunk.push('\n');
-            current_chunk.push('\n');
-        }
-        current_chunk.push_str(&line);
-        current_token_count += token_count;
-
-        // Check if adding this line exeeded the token limit
-        if current_token_count + token_count > 450 {
-            // If current chunk is full, push it to chunks and start a new one
-            chunks.push(current_chunk.clone());
-            current_chunk = String::new();
-            current_token_count = 0;
-        }
-    }
-
-    // Don't forget to add the last chunk if it's not empty
-    if !current_chunk.is_empty() {
-        chunks.push(current_chunk);
-    }
-
-    chunks
-    
-
-}
-
-
-
-fn merge_parsed_documents(records: Vec<ProcessedDocumentChunk>) -> String {
-    let mut merged = "".to_owned();
-    for (_, translation, success) in records {
-        if success {
-            merged = format!("{}\n{}", merged, translation);
-        }
-    }
-    merged
-}

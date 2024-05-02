@@ -95,8 +95,11 @@ fn main() {
             };
 
             let mut responses: Vec<ProcessedDocumentChunk> = vec![]; 
-
-            for prompt_string in split_to_prompts(document) {
+            let prompts = split_to_prompts(document);
+            let prompts_len = prompts.len();
+            let doc_progress = get_progress_bar(prompts_len);
+            
+            for prompt_string in prompts {
                 // Process the prompt with the selected model and device
                 let question = prompt_string.clone();
                 let prompt = Prompt::One(prompt_string);
@@ -104,6 +107,7 @@ fn main() {
                     Ok(out) => responses.push((question, out, true)),
                     Err(e) => responses.push((question, e.to_string(), false)),
                 };
+                doc_progress.inc(1);
             }
 
             (document.file_name.clone(), responses)
@@ -126,7 +130,7 @@ fn main() {
 
 
         for (file, records) in results {
-            if let Err(e) = save_to_json(&records, &format!("./data/{file}.jsonl")) {
+            if let Err(e) = save_to_json(&records, &format!("{file}.jsonl")) {
                 println!("Failed saving records: {:#?}", e)
             };
         }
@@ -144,7 +148,50 @@ fn main() {
 }
 
 fn split_to_prompts(document: &Doc) -> Vec<String> {
-    todo!()
+    let tokenizer = match load_tokenizer("models/llama3-8b/tokenizer.json") {
+        Ok(t) => t,
+        Err(e) => panic!("Can't load tokenizer: {}", e),
+    };
+
+    let mut chunks = Vec::new();
+    let mut current_chunk = String::new();
+    let mut current_token_count = 0;
+
+    // Split the document content by newlines
+    let lines = document.content.split('\n');
+
+    for line in lines {
+        // Use tokenizer to encode the line and check the token count
+        let tokens = match tokenizer.encode(&*line, true) {
+            Ok(t) => t,
+            Err(e) => panic!("Error tokenizing: {}", e),
+        };
+        let token_count = tokens.len();
+
+        // Check if adding this line would exceed the token limit
+        if current_token_count + token_count > 450 {
+            // If current chunk is full, push it to chunks and start a new one
+            chunks.push(current_chunk.clone());
+            current_chunk = String::new();
+            current_token_count = 0;
+        }
+
+        // Add this line to the current chunk
+        if !current_chunk.is_empty() {
+            current_chunk.push('\n');
+        }
+        current_chunk.push_str(&line);
+        current_token_count += token_count;
+    }
+
+    // Don't forget to add the last chunk if it's not empty
+    if !current_chunk.is_empty() {
+        chunks.push(current_chunk);
+    }
+
+    chunks
+    
+
 }
 
 fn get_progress_bar(len: usize) -> ProgressBar {
@@ -153,6 +200,16 @@ fn get_progress_bar(len: usize) -> ProgressBar {
         .unwrap()
         .progress_chars("##-"));
     progress_bar
+}
+
+fn merge_parsed_documents(records: Vec<ProcessedDocumentChunk>) -> String {
+    let mut merged = "".to_owned();
+    for (_, translation, success) in records {
+        if success {
+            merged = format!("{}\n{}", merged, translation);
+        }
+    }
+    merged
 }
 
 fn save_to_csv(records: Vec<ProcessedDocumentChunk>, file_name: &str) -> Result<()> {

@@ -3,7 +3,7 @@ pub const PAR_CHUNK_SIZE: u64 = 2;
 pub const PROGRESS_FILE: &str = "./data/progress.json";
 pub const SKIP_TRANSLATE: bool = false;
 
-pub const SYSTEM_MSG: &str = "Your task is to translate the given passages from slovene to english. The passages are given in a markdown format. You should keep the structure of the markdown and have the translation to english be as close to the original meaning as possible. The only structure modification should be adding up to 5 keywords of the passafge at the start of the answer. Only respond with the keywords and the transalation.";
+pub const SYSTEM_MSG: &str = "Your task is to translate the given passages from slovene to english. The passages are given in a markdown format. You should keep the structure of the markdown and have the translation to english be as close to the original meaning as possible. TOnly respond with the transalation.";
 
 pub const SEED: u64 = 42;
 

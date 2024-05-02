@@ -1,6 +1,10 @@
+pub const TRANSLATE: bool = false;
+pub const DOCS_TO_TRANSLATE_FOLDER: &str = "./data/";
+
+
 pub const FILES_TO_PROCESS: Option<usize> = None;
 pub const PAR_CHUNK_SIZE: u64 = 2;
-pub const PROGRESS_FILE: &str = "./data/progress.json";
+pub const TRANSLATOR_PROGRESS_FILE: &str = "./data/translation_progress.json";
 
 pub const SYSTEM_MSG: &str = "Your task is to translate the given passages from slovene to english. The passages are given in a markdown format. You should keep the structure of the markdown and have the translation to english be as close to the original meaning as possible. It is import you only respond with the transalation and keep the markdown structure.";
 

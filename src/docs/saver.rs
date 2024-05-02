@@ -2,7 +2,7 @@ use std::{fs::{File, OpenOptions}, io::Write, path::Path};
 use anyhow::Result;
 use csv::Writer;
 
-use crate::{util::get_progress_bar, ProcessedDocumentChunk};
+use crate::{controllers::translator::ProcessedDocumentChunk, util::get_progress_bar};
 
 
 pub fn save_to_csv(records: Vec<ProcessedDocumentChunk>, file_name: &str) -> Result<()> {

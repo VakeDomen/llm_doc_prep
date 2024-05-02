@@ -1,2 +1,2 @@
-# Bitcoin inscription analisys
-Project to analyze the semantics of the bitcoin inscriptions using local LLMs. 
+# Document preparation
+Project uses LLMs to preprocess document data to prepare for [Urška](https://github.com/VakeDomen/llm_urska_be)

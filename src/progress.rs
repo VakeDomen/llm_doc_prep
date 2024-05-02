@@ -2,13 +2,13 @@ use std::{fs::File, io::{BufWriter, Read, Write}};
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use crate::config::{INSCRIPTIONS_TO_PROCESS, PAR_CHUNK_SIZE};
+use crate::config::{FILES_TO_PROCESS, PAR_CHUNK_SIZE};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Progress {
     pub batches_done: u64,
     pub par_chunk_size: u64,
-    pub inscriptions_to_process: Option<usize>,
+    pub files_to_process: Option<usize>,
 }
 
 impl Default for Progress {
@@ -16,7 +16,7 @@ impl Default for Progress {
         Self { 
             batches_done: 0, 
             par_chunk_size: PAR_CHUNK_SIZE, 
-            inscriptions_to_process: INSCRIPTIONS_TO_PROCESS 
+            files_to_process: FILES_TO_PROCESS 
         }
     }
 }

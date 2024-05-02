@@ -1,9 +1,9 @@
-pub const INSCRIPTIONS_TO_PROCESS: Option<usize> = None;
+pub const FILES_TO_PROCESS: Option<usize> = None;
 pub const PAR_CHUNK_SIZE: u64 = 2;
 pub const PROGRESS_FILE: &str = "./data/progress.json";
+pub const SKIP_TRANSLATE: bool = false;
 
-
-pub const SYSTEM_MSG: &str = "Your task is to help us analyize bitcoin inscriptions. You will tell me a summary of the given text. And then give a list of up to 5 keywords that would describe the inscription and a language field for the language (code) of the inscription. You only respond with JSON.";
+pub const SYSTEM_MSG: &str = "Your task is to translate the given passages from slovene to english. The passages are given in a markdown format. You should keep the structure of the markdown and have the translation to english be as close to the original meaning as possible. The only structure modification should be adding up to 5 keywords of the passafge at the start of the answer. Only respond with the keywords and the transalation.";
 
 pub const SEED: u64 = 42;
 

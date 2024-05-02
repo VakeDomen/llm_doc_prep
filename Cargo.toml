@@ -1,0 +1,21 @@
+[package]
+name = "llm_bitcoin_inscription_analysis"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.82"
+candle-core = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", features = ["cuda"] }
+csv = "1.3.0"
+hf-hub = "0.3.2"
+indicatif = "0.17.8"
+jsonl = "4.0.1"
+rayon = "1.10.0"
+serde = { version = "1.0.198", features = ["derive"] }
+serde_json = "1.0.116"
+serve = "0.0.1"
+tokenizers = "0.19.1"
+

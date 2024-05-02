@@ -1,25 +1,27 @@
 
-use std::{cmp::min, fs::{File, OpenOptions}, io::Write, panic, path::Path, sync::{Arc, Mutex}, vec};
+use std::{cmp::min, panic, sync::{Arc, Mutex}, vec};
 
 use candle_core::{self, Device};
-use csv::Writer;
 use docs::doc::Doc;
-use indicatif::{ProgressBar, ProgressStyle};
-use anyhow::Result;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-        config::{PAR_CHUNK_SIZE, PROGRESS_FILE}, docs::loader::{load_data, load_jsonl_data}, llm::{
+    config::{PAR_CHUNK_SIZE, PROGRESS_FILE}, 
+    docs::{loader::load_data, saver::{save_raw, save_to_json}}, 
+    llm::{
         model::load_model,
         prompt::{prompt_model, Prompt}, 
         tokenizer::load_tokenizer
-    }, progress::{load_progress, save_progress, Progress}
+    }, 
+    progress::{load_progress, save_progress, Progress}, 
+    util::get_progress_bar
 };
 
 mod llm;
 mod config;
 mod docs;
 mod progress;
+mod util;
 
 type ProcessedDocumentChunk = (String, String, bool);
 
@@ -193,13 +195,7 @@ fn split_to_prompts(document: &Doc) -> Vec<String> {
 
 }
 
-fn get_progress_bar(len: usize) -> ProgressBar {
-    let progress_bar = ProgressBar::new(len as u64);
-    progress_bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .unwrap()
-        .progress_chars("##-"));
-    progress_bar
-}
+
 
 fn merge_parsed_documents(records: Vec<ProcessedDocumentChunk>) -> String {
     let mut merged = "".to_owned();
@@ -209,55 +205,4 @@ fn merge_parsed_documents(records: Vec<ProcessedDocumentChunk>) -> String {
         }
     }
     merged
-}
-
-fn save_to_csv(records: Vec<ProcessedDocumentChunk>, file_name: &str) -> Result<()> {
-    let mut wtr = Writer::from_path(file_name)?;
-    let mut successful_writes = 0;
-    let mut failed_writes = 0;
-    println!("Saving file: {}", file_name);
-    let progress_bar = get_progress_bar(records.len());
-    for record in records.into_iter() {
-        match wtr.write_record(&[record.0, record.1]) {
-            Ok(_) => successful_writes += 1,
-            Err(_) => failed_writes += 1,
-        };
-        progress_bar.inc(1); 
-    }
-    wtr.flush()?;
-    println!("Saved: {} \tFailed: {}", successful_writes, failed_writes);
-    Ok(())
-}
-
-fn save_to_json(records: &Vec<ProcessedDocumentChunk>, file_name: &str) -> Result<()> {
-    let mut file = if !Path::new(file_name).exists() {
-        File::create(file_name)?
-    } else {
-        OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(file_name)?
-    };
-
-    for record in records {
-        if let Err(e) = writeln!(file, "{:?}", serde_json::to_string(record).unwrap()) {
-            eprintln!("Couldn't write to file: {}", e);
-        }
-    }
-    // println!("Saving file: {}", file_name);
-    
-
-    // // Flushing the buffer to ensure all data is written to the file
-    // buf_writer.flush()?;
-
-    // // Update progress bar after serialization
-    // progress_bar.finish_with_message("File saved successfully.");
-
-    Ok(())
-}
-
-fn save_raw(content: String, file_name: String) -> Result<()> {
-    let mut f = File::create(&file_name)?;
-    f.write_all(content.as_bytes())?;
-    Ok(())
 }

@@ -114,26 +114,24 @@ fn main() {
 
         }).collect();
 
-        // for result in results {
-        //     match result {
-        //         Ok((id, out)) => {
-        //             processed.push((id, out));
-        //         },
-        //         Err((id, err)) => failed.push((id, err)),
-        //     }
-        // }
-
         progress_bar.inc(PAR_CHUNK_SIZE); 
         done += progress.par_chunk_size;
 
         progress.batches_done += 1;
 
 
-        for (file, records) in results {
+        for (file, records) in &results {
             if let Err(e) = save_to_json(&records, &format!("{file}.jsonl")) {
                 println!("Failed saving records: {:#?}", e)
             };
         }
+
+        for (file, records) in results {
+            let tranlsated_content = merge_parsed_documents(records);
+            if let Err(e) = save_raw(tranlsated_content, format!("{file}_translated.md")) {
+                println!("Failed saving records: {:#?}", e)
+            };
+        } 
 
         if let Err(e) = save_progress(&progress, PROGRESS_FILE) {
             println!("Failed to save progress file: {:#?}", e);
@@ -158,7 +156,7 @@ fn split_to_prompts(document: &Doc) -> Vec<String> {
     let mut current_token_count = 0;
 
     // Split the document content by newlines
-    let lines = document.content.split('\n');
+    let lines = document.content.split("\n\n");
 
     for line in lines {
         // Use tokenizer to encode the line and check the token count
@@ -168,20 +166,21 @@ fn split_to_prompts(document: &Doc) -> Vec<String> {
         };
         let token_count = tokens.len();
 
-        // Check if adding this line would exceed the token limit
+        // Add this line to the current chunk
+        if !current_chunk.is_empty() {
+            current_chunk.push('\n');
+            current_chunk.push('\n');
+        }
+        current_chunk.push_str(&line);
+        current_token_count += token_count;
+
+        // Check if adding this line exeeded the token limit
         if current_token_count + token_count > 450 {
             // If current chunk is full, push it to chunks and start a new one
             chunks.push(current_chunk.clone());
             current_chunk = String::new();
             current_token_count = 0;
         }
-
-        // Add this line to the current chunk
-        if !current_chunk.is_empty() {
-            current_chunk.push('\n');
-        }
-        current_chunk.push_str(&line);
-        current_token_count += token_count;
     }
 
     // Don't forget to add the last chunk if it's not empty
@@ -254,5 +253,11 @@ fn save_to_json(records: &Vec<ProcessedDocumentChunk>, file_name: &str) -> Resul
     // // Update progress bar after serialization
     // progress_bar.finish_with_message("File saved successfully.");
 
+    Ok(())
+}
+
+fn save_raw(content: String, file_name: String) -> Result<()> {
+    let mut f = File::create(&file_name)?;
+    f.write_all(content.as_bytes())?;
     Ok(())
 }

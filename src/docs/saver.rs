@@ -38,15 +38,6 @@ pub fn save_to_json(records: &Vec<ProcessedDocumentChunk>, file_name: &str) -> R
             eprintln!("Couldn't write to file: {}", e);
         }
     }
-    // println!("Saving file: {}", file_name);
-    
-
-    // // Flushing the buffer to ensure all data is written to the file
-    // buf_writer.flush()?;
-
-    // // Update progress bar after serialization
-    // progress_bar.finish_with_message("File saved successfully.");
-
     Ok(())
 }
 

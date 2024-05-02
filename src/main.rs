@@ -13,14 +13,12 @@ use crate::{
         prompt::{prompt_model, Prompt}, 
         tokenizer::load_tokenizer
     }, 
-    progress::{load_progress, save_progress, Progress}, 
-    util::get_progress_bar
+    util::{get_progress_bar, load_progress, save_progress, Progress}
 };
 
 mod llm;
 mod config;
 mod docs;
-mod progress;
 mod util;
 
 type ProcessedDocumentChunk = (String, String, bool);

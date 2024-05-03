@@ -3,16 +3,16 @@ use candle_core::Device;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use tokio::runtime::Runtime;
 use crate::{
-    config::{EMBEDD, KEYWORD_DECORATOR_MODEL, KEYWORD_DECORATOR_PROGRESS_FILE, KEYWORD_DECORATOR_SYSTEM_MSG, KEYWORD_DECORATOR_TOKENIZER, PAR_CHUNK_SIZE}, 
+    config::{KEYWORD_DECORATOR_MODEL, KEYWORD_DECORATOR_PROGRESS_FILE, KEYWORD_DECORATOR_SYSTEM_MSG, KEYWORD_DECORATOR_TOKENIZER, PAR_CHUNK_SIZE}, 
     docs::{doc::Doc, embedded_doc::{EmbeddedDoc, Passage}, qdant::insert_docs, saver::{save_raw, save_to_json}}, 
     llm::{embedding_model::embedd, model::load_model, prompt::{prompt_model, Prompt}, tokenizer::load_tokenizer}, 
     util::{get_progress_bar, load_progress, save_progress, Progress}
 };
-use super::splitter::{merge_parsed_documents, split_to_prompts};
+use super::splitter::split_partial_overlapping;
 
 pub type ProcessedDocumentChunk = (String, String, bool);
 
-pub fn decorate_passages(mut passages: Vec<Doc>) -> Vec<ProcessedDocumentChunk> {
+pub fn decorate_passages(mut passages: Vec<Doc>) {
     println!("Passages to decorate: {}", passages.len());
     let device1 = match Device::new_cuda(0) {
         Ok(cuda) => cuda,
@@ -57,13 +57,12 @@ pub fn decorate_passages(mut passages: Vec<Doc>) -> Vec<ProcessedDocumentChunk> 
     let mut done = progress.batches_done * progress.par_chunk_size;
     let progress_bar = get_progress_bar(to_process, 0);
     progress_bar.inc(done); 
-    let mut data = vec![];
     
     passages.drain(0..(done as usize));
 
     for batch in passages.chunks(progress.par_chunk_size as usize) {
 
-        let decorated_docs: Vec<Vec<ProcessedDocumentChunk>> = batch.par_iter().enumerate().map(|(index, document)| {
+        let decorated_docs: Vec<Vec<EmbeddedDoc>> = batch.par_iter().enumerate().map(|(index, document)| {
 
             // Select the appropriate model and device based on the index
             let (mut model, device) = match index % 2 {
@@ -72,7 +71,7 @@ pub fn decorate_passages(mut passages: Vec<Doc>) -> Vec<ProcessedDocumentChunk> 
             };
 
             let mut responses: Vec<ProcessedDocumentChunk> = vec![]; 
-            let prompts = split_to_prompts(document);
+            let prompts = split_partial_overlapping(document);
             let prompts_len = prompts.len();
             let doc_progress = get_progress_bar(prompts_len, 1);
             
@@ -94,55 +93,52 @@ pub fn decorate_passages(mut passages: Vec<Doc>) -> Vec<ProcessedDocumentChunk> 
                 doc_progress.inc(1);
             }
 
-            if EMBEDD {
+            let mut embedded_docs = vec![];
 
-                let mut embedded_docs = vec![];
+            let rt = Runtime::new().unwrap();  // Create a new Tokio runtime
+            for (passage, keywords, success) in responses {
+                if success {
+                    let content = format!("{}\n\n{}", keywords, passage);
+                    let embedding_vector = match rt.block_on(async { embedd(&content).await }) {
+                        Ok(vec) => vec.to_vec2::<f32>(),
+                        Err(e) => {
+                            println!("Ccant embedd passage: {:#?}\n{}",e, passage);
+                            continue;
+                        },
+                    };
 
-                let rt = Runtime::new().unwrap();  // Create a new Tokio runtime
-                for (passage, keywords, success) in responses.clone() {
-                    if success {
-                        let content = format!("{}\n\n{}", keywords, passage);
-                        let embedding_vector = match rt.block_on(async { embedd(&content).await }) {
-                            Ok(vec) => vec.to_vec2::<f32>(),
-                            Err(e) => {
-                                println!("Ccant embedd passage: {:#?}\n{}",e, passage);
-                                continue;
-                            },
-                        };
+                    let embedding_vector = match embedding_vector {
+                        Ok(v) => v,
+                        Err(e) =>  {
+                            println!("Cant convert passage embedding tensor: {:#?}\n{}",e, passage);
+                            continue;
+                        },
+                    };
 
-                        let embedding_vector = match embedding_vector {
-                            Ok(v) => v,
-                            Err(e) =>  {
-                                println!("Cant convert passage embedding tensor: {:#?}\n{}",e, passage);
-                                continue;
-                            },
-                        };
+                    let vector = embedding_vector.get(0).unwrap().clone();
 
-                        let vector = embedding_vector.get(0).unwrap().clone();
-
-                        embedded_docs.push(EmbeddedDoc {
-                            vector,
-                            content: Passage {
-                                usage: 0,
-                                text: content,
-                            }
-                        });
-                    }
+                    embedded_docs.push(EmbeddedDoc {
+                        vector,
+                        content: Passage {
+                            usage: 0,
+                            text: content,
+                        }
+                    });
                 }
-
-                match rt.block_on(async { insert_docs(embedded_docs.clone()).await }) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        println!("Error upserting to Qdrant: {:#?}", e);
-                        ()
-                    },
-                };
             }
 
-            responses
+            match rt.block_on(async { insert_docs(embedded_docs.clone()).await }) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("Error upserting to Qdrant: {:#?}", e);
+                    ()
+                },
+            }
+
+            embedded_docs
         }).collect();
 
-        data.push(decorated_docs);
+        
 
         progress_bar.inc(PAR_CHUNK_SIZE); 
         done += progress.par_chunk_size;
@@ -159,17 +155,6 @@ pub fn decorate_passages(mut passages: Vec<Doc>) -> Vec<ProcessedDocumentChunk> 
         }
     }
 
-    let mut flat_data = vec![];
-
-    for i in data {
-        for j in i {
-            for k in j {
-                flat_data.push(k);
-            }
-        }
-    }
-
     progress_bar.finish_with_message("Deorating passages complete!");
-    flat_data
 }
 

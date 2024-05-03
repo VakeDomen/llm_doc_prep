@@ -1,6 +1,8 @@
 // FUNCTION
 pub const TRANSLATE: bool = false;
-pub const EMBEDD: bool = true;
+pub const EMBEDD: bool = false;
+pub const DECORATE: bool = true;
+pub const GENERATE_EMBEDDING_QUESTIONS: bool = true;
 
 // TRANSLATE
 pub const DOCS_TO_TRANSLATE_FOLDER: &str = "./data/a_to_translate/";
@@ -22,6 +24,8 @@ pub const EMBEDDING_TOKENIZER: &str = "models/llama3-8b/tokenizer.json";
 pub const TRANSLATION_TOKENIZER: &str = "models/llama3-8b/tokenizer.json";
 pub const TRANSLATION_MODEL: &str = "models/llama3-8b/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf";
 
+pub const QUESTION_TOKENIZER: &str = "models/llama3-8b/tokenizer.json";
+pub const QUESTION_MODEL: &str = "models/llama3-8b/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf";
 
 pub const KEYWORD_DECORATOR_TOKENIZER: &str = "models/llama3-8b/tokenizer.json";
 pub const KEYWORD_DECORATOR_MODEL: &str = "models/llama3-8b/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf";

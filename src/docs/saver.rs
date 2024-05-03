@@ -10,7 +10,7 @@ pub fn save_to_csv(records: Vec<ProcessedDocumentChunk>, file_name: &str) -> Res
     let mut successful_writes = 0;
     let mut failed_writes = 0;
     println!("Saving file: {}", file_name);
-    let progress_bar = get_progress_bar(records.len());
+    let progress_bar = get_progress_bar(records.len(), 2);
     for record in records.into_iter() {
         match wtr.write_record(&[record.0, record.1]) {
             Ok(_) => successful_writes += 1,

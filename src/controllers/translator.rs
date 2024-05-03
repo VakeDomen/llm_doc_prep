@@ -2,8 +2,8 @@ use std::{cmp::min, sync::{Arc, Mutex}};
 use candle_core::Device;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use crate::{
-    config::{PAR_CHUNK_SIZE, TRANSLATION_TOKENIZER, TRANSLATION_MODEL, TRANSLATOR_PROGRESS_FILE}, 
-    docs::{doc::Doc, saver::{save_raw, save_to_json}}, 
+    config::{PAR_CHUNK_SIZE, TRANSLATION_MODEL, TRANSLATION_TOKENIZER, TRANSLATOR_PROGRESS_FILE, TRANSLATOR_SYSTEM_MSG}, 
+    docs::{doc::Doc, embedded_doc, saver::{save_raw, save_to_json}}, 
     llm::{model::load_model, prompt::{prompt_model, Prompt}, tokenizer::load_tokenizer}, 
     util::{get_progress_bar, load_progress, save_progress, Progress}
 };
@@ -54,7 +54,7 @@ pub fn translate(mut docs: Vec<Doc>) {
     };
 
     let mut done = progress.batches_done * progress.par_chunk_size;
-    let progress_bar = get_progress_bar(to_process);
+    let progress_bar = get_progress_bar(to_process, 0);
     progress_bar.inc(done); 
     
     docs.drain(0..(done as usize));
@@ -72,12 +72,15 @@ pub fn translate(mut docs: Vec<Doc>) {
             let mut responses: Vec<ProcessedDocumentChunk> = vec![]; 
             let prompts = split_to_prompts(document);
             let prompts_len = prompts.len();
-            let doc_progress = get_progress_bar(prompts_len);
+            let doc_progress = get_progress_bar(prompts_len, 1);
             
             for prompt_string in prompts {
                 // Process the prompt with the selected model and device
                 let question = prompt_string.clone();
-                let prompt = Prompt::One(prompt_string);
+                let prompt = Prompt::One(
+                    TRANSLATOR_SYSTEM_MSG.to_string(),
+                    prompt_string
+                );
                 match prompt_model(&mut *model, &tokenizer, prompt, device) {
                     Ok(out) => responses.push((question, out, true)),
                     Err(e) => responses.push((question, e.to_string(), false)),

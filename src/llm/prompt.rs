@@ -6,14 +6,14 @@ use candle_transformers::models::quantized_llama::{ModelWeights, MAX_SEQ_LEN};
 use tokenizers::Tokenizer;
 
 use crate::{config::{
-    REPEAT_LAST_N, REPEAT_PENALTY, SAMPLE_LEN, SPLIT_PROPMT, SYSTEM_MSG, VERBOSE_PROMPT
+    REPEAT_LAST_N, REPEAT_PENALTY, SAMPLE_LEN, SPLIT_PROPMT, VERBOSE_PROMPT
 }, llm::model::setup_logit_procesing};
 
 use super::tokenizer::TokenOutputStream;
 
 #[derive(Debug)]
 pub enum Prompt {
-    One(String),
+    One(String, String),
 }
 
 #[derive(Debug)]
@@ -42,7 +42,7 @@ impl fmt::Display for PromptError {
 /// A `Result` containing the processed string or an error.
 pub fn parse_prompt_to_raw(prompt: &Prompt) -> Result<String> {
     match &prompt {
-        Prompt::One(prompt) => Ok(llama3_prompt(prompt.clone())),
+        Prompt::One(system_msg, user_prompt) => Ok(llama3_prompt(&system_msg, &user_prompt)),
     }
 }
 
@@ -54,10 +54,10 @@ pub fn parse_prompt_to_raw(prompt: &Prompt) -> Result<String> {
 ///
 /// # Returns
 /// A formatted string with predefined system and user sections.
-pub fn llama3_prompt(user_msg: String) -> String {
+pub fn llama3_prompt(system_msg: &str, user_msg: &str) -> String {
     format!(
         "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n", 
-        SYSTEM_MSG,
+        system_msg,
         user_msg
     )
 }

@@ -4,7 +4,7 @@ use qdrant_client::{client::QdrantClient, qdrant::{PointStruct, SearchPoints, Se
 use serde_json::json;
 use tokio::sync::Mutex;
 use anyhow::{Error, Result};
-use crate::config::{QDRANT_COLLECTION, QDRANT_SERVER};
+use crate::{config::{QDRANT_COLLECTION, QDRANT_SERVER}, util::get_progress_bar};
 
 use super::embedded_doc::EmbeddedDoc;
 
@@ -55,7 +55,9 @@ pub async fn vector_search(embedding: Tensor) -> Result<SearchResponse> {
 }
 
 pub async fn insert_docs(embedded_docs: Vec<EmbeddedDoc>) -> Result<()> {
+    println!("Upserting to qdrant...");
     let guard = QDRANT_CLIENT.lock().await;
+    let porgress_bar = get_progress_bar(embedded_docs.len(), 2);
 
     for doc in embedded_docs {
         let insert_result = guard.upsert_points(
@@ -70,7 +72,7 @@ pub async fn insert_docs(embedded_docs: Vec<EmbeddedDoc>) -> Result<()> {
             )],
             None,
         ).await;
-
+        porgress_bar.inc(1);
         insert_result.map_err(|e| Error::msg(format!("Failed to insert document: {}", e)))?;
     }
 

@@ -20,7 +20,7 @@ use crate::llm::loader::load_bert_model;
 /// # Errors
 /// - Returns an error if any step in the embedding generation process fails, including model loading, tokenization,
 ///   tensor operations, or WebSocket communication failures.
-pub async fn generate_prompt_embedding(
+pub async fn embedd(
     prompt: &str,
 ) -> Result<Tensor> {
     let (model, tokenizer, device) = load_bert_model(Some(0))?;

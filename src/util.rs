@@ -1,9 +1,12 @@
-use indicatif::{ProgressBar, ProgressStyle};
-use std::{fs::File, io::{BufWriter, Read, Write}};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use once_cell::sync::Lazy;
+use std::{fs::File, io::{BufWriter, Read, Write}, sync::Mutex};
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
 use crate::config::{FILES_TO_PROCESS, PAR_CHUNK_SIZE};
+
+static MULTI_PROGRESS: Lazy<Mutex<MultiProgress>> = Lazy::new(|| Mutex::new(MultiProgress::new()));
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Progress {
@@ -61,10 +64,19 @@ fn progress_from_file(mut file: File) -> Progress {
         },
     }
 }
-pub fn get_progress_bar(len: usize) -> ProgressBar {
+pub fn get_progress_bar(len: usize, style: i32) -> ProgressBar {
+    let style_template = match style {
+        0 => ProgressStyle::with_template("[{elapsed_precise}] {bar:40.green/blue} {pos:>7}/{len:7} {msg}"),
+        1 => ProgressStyle::with_template("[{elapsed_precise}] {bar:40.red/blue} {pos:>7}/{len:7} {msg}"),
+        _ => ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}"),
+    };
     let progress_bar = ProgressBar::new(len as u64);
-    progress_bar.set_style(ProgressStyle::with_template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .unwrap()
-        .progress_chars("##-"));
-    progress_bar
+    progress_bar.set_style(
+        style_template
+            .unwrap()
+            .progress_chars("##-")
+    );
+
+    let mp = MULTI_PROGRESS.lock().unwrap();
+    mp.add(progress_bar)
 }

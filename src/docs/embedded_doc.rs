@@ -8,6 +8,6 @@ pub struct EmbeddedDoc {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Passage {
-    usage: u32,
-    text: String,
+    pub usage: u32,
+    pub text: String,
 }

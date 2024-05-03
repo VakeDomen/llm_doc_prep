@@ -1,8 +1,9 @@
 use crate::{
-    config::{DOCS_TO_TRANSLATE_FOLDER, TRANSLATE}, 
-    controllers::translator::translate, docs::loader::load_data, llm::embedding_model::generate_prompt_embedding
+    config::{DOCS_TO_EMBEDD_FOLDER, DOCS_TO_TRANSLATE_FOLDER, TRANSLATE}, 
+    controllers::{keyword_decorator::decorate_passages, translator::translate}, docs::loader::load_data
 };
 use anyhow::Result;
+use config::EMBEDD;
 
 mod llm;
 mod config;
@@ -10,8 +11,7 @@ mod docs;
 mod util;
 mod controllers;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() {
     println!(
         "avx: {}, neon: {}, simd128: {}, f16c: {}",
         candle_core::utils::with_avx(),
@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
 
     
     if TRANSLATE {
-        println!("Loading doc");
+        println!("Loading translation docs...");
         let docs = match load_data(DOCS_TO_TRANSLATE_FOLDER) {
             Ok(i) => i,
             Err(e) => panic!("Error loading doc: {:#?}", e),
@@ -30,11 +30,13 @@ async fn main() -> Result<()> {
         translate(docs);
     }
     
-    
+    if EMBEDD {
+        println!("Loading embedding docs...");
+        let docs = match load_data(DOCS_TO_EMBEDD_FOLDER) {
+            Ok(i) => i,
+            Err(e) => panic!("Error loading docs: {:#?}", e),
+        };
+        decorate_passages(docs);
+    }
 
-    match generate_prompt_embedding("Hello world").await {
-        Ok(em) => println!("{:?} -> {:?}",em.shape(), em.to_vec2::<f32>()),
-        Err(e) => println!("ERROR: {:#?}", e)
-    };
-    Ok(())
 }

@@ -12,6 +12,7 @@ use super::splitter::{merge_parsed_documents, split_to_prompts};
 pub type ProcessedDocumentChunk = (String, String, bool);
 
 pub fn translate(mut docs: Vec<Doc>) {
+    println!("Docs to translate: {}", docs.len());
     let device1 = match Device::new_cuda(0) {
         Ok(cuda) => cuda,
         Err(e) => {
